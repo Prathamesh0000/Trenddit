@@ -8,6 +8,7 @@ lxml = "*"
 requests = "*"
 python-dateutil = "*"
 pymongo = "*"
+apscheduler = "*"
 
 [dev-packages]
 
