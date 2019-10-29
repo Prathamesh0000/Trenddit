@@ -71,10 +71,13 @@ def gNewsCrawl(gNewsUrl):
     outputNewsArr = []
     news = tree.xpath('.//*[@class="xrnccd"]')
     relatedNewsHtml =  tree.xpath('.//*[@class="SbNwzf"]')
-
     for index, relatedNews in enumerate(relatedNewsHtml):
+        aggregatedText = ''
         articles = relatedNews.xpath('.//article')
         firstNews = relatedNews.xpath('./parent::*/article')[0]
+        txt = firstNews.xpath('.//text()')
+        txt = removeMinWordsFromListOfString(txt)
+        aggregatedText += txt + "."
         articles.append(firstNews)
         relatedArticles = []
         for eachArticleIndex, eachArticle  in enumerate(articles):
@@ -85,6 +88,7 @@ def gNewsCrawl(gNewsUrl):
             source = eachArticle.xpath('.//*[@class="SVJrMe"][1]/a[1]')[0].text_content()
             text  = eachArticle.xpath('.//text()')
             text = removeMinWordsFromListOfString(text)
+            aggregatedText += text + "."
             relatedArticles.append({
 			"index": eachArticleIndex,
                         "href": href,
@@ -92,10 +96,11 @@ def gNewsCrawl(gNewsUrl):
                         "source": source,
                         "text:": text,
                     })
-        txt = firstNews.xpath('.//text()')
         outputNewsArr.append({
-                "text": removeMinWordsFromListOfString(txt), 
-                "relatedArticles": relatedArticles})
+                "text": txt, 
+                "relatedArticles": relatedArticles,
+                "AggregatedText" : aggregatedText
+                })
 
     json_data ={
             "news": outputNewsArr,
