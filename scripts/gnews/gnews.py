@@ -1,7 +1,5 @@
 import urllib.request as url
-
-gUrl = "https://news.google.com/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US%3Aen"
-baseGUrl = "https://news.google.com/"
+import datetime
 
 # user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.101 Safari/537.36'
 
@@ -49,20 +47,19 @@ def removeMinWordsFromListOfString( listSring , noOfWords = 1):
 # python -> mongo connect
 def pythonConnectDB( databaseName, collectionName):
     import pymongo
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
-    mydb = myclient[databaseName]
-    dblist = myclient.list_database_names()
-    if databaseName in dblist:
+    myClient = pymongo.MongoClient("mongodb://localhost:27017/")
+    myDB = myClient[databaseName]
+    dbList = myClient.list_database_names()
+    if databaseName in dbList:
         print(databaseName + " database exists.")
     else:
         raise ValueError(databaseName + " database does not exist")
-    return mydb[collectionName]
+    return myDB[collectionName]
 
 
-def gnewsCrawl(gNewsUrl):
+def gNewsCrawl(gNewsUrl):
     from lxml import html
     import requests
-    import datetime
 
 #    session = requests.Session()  # so connections are recycled
 
@@ -103,10 +100,10 @@ def gnewsCrawl(gNewsUrl):
             "scriptTime": convertDateToJson(datetime.datetime.now())
             }
 
-    print("Done")
 
-    for i in outputNewsArr[0:1]:
-        print("text : " + str(i['text']))
+    print("text : " + str(outputNewsArr[0]['text']))
+
+    print("Done")
     return json_data
 
 
@@ -118,14 +115,26 @@ def scheduleJob():
     collectionName = "gnews"
     collection = pythonConnectDB(databaseName, collectionName)
 
-    def saveGnewsData():
+    def saveGNewsData():
         print ("job Started")
-        json_data = gnewsCrawl("https://news.google.com/?hl=en-US&gl=US&ceid=US:en")
-        collection.insert_one(json_data)
+        # USA, INDIA, CANADA, Israel, England, Pakistan, Singapore, Australia
+        listOfCountries = ['US', 'IN', 'CA', 'IL','GB', 'PK', 'SG', 'AU']
+
+        dumpData = {
+            "version" : 1,
+            "scriptTime": convertDateToJson(datetime.datetime.now())
+        }
+        print("parsing each countries data")
+        for index in range(len(listOfCountries)):
+            eachCountry = listOfCountries[index]
+            print(eachCountry)
+            json_data = gNewsCrawl("https://news.google.com/?hl=en-" + eachCountry + "&gl=" + eachCountry + "&ceid=" + eachCountry + ":en")
+            dumpData[eachCountry] = json_data
+        collection.insert_one(dumpData)
         print ("job Ended")
 
     scheduler = BlockingScheduler()
-    scheduler.add_job(saveGnewsData, 'interval',  minutes=1)
+    scheduler.add_job(saveGNewsData, 'interval',  minutes=1)
     scheduler.start()
 
 scheduleJob()
