@@ -54,6 +54,8 @@ def pythonConnectDB( databaseName, collectionName):
         print(databaseName + " database exists.")
     else:
         raise ValueError(databaseName + " database does not exist")
+    if isinstance(collectionName, list):
+        return [ myDB[eachCollection] for eachCollection in collectionName] 
     return myDB[collectionName]
 
 
@@ -113,12 +115,12 @@ def scheduleJob():
     
     databaseName = "Trenddit"
     collectionName = "gnews"
-    collection = pythonConnectDB(databaseName, collectionName)
+    listOfCountries = ['US', 'IN', 'CA', 'IL','GB', 'PK', 'SG', 'AU']
+    collection = pythonConnectDB(databaseName, [ collectionName + "_" + eachCountry  for eachCountry in listOfCountries])
 
     def saveGNewsData():
         print ("job Started")
         # USA, INDIA, CANADA, Israel, England, Pakistan, Singapore, Australia
-        listOfCountries = ['US', 'IN', 'CA', 'IL','GB', 'PK', 'SG', 'AU']
 
         dumpData = {
             "version" : 1,
@@ -130,7 +132,7 @@ def scheduleJob():
             print(eachCountry)
             json_data = gNewsCrawl("https://news.google.com/?hl=en-" + eachCountry + "&gl=" + eachCountry + "&ceid=" + eachCountry + ":en")
             dumpData[eachCountry] = json_data
-        collection.insert_one(dumpData)
+            collection[index].insert_one(dumpData)
         print ("job Ended")
 
     scheduler = BlockingScheduler()
