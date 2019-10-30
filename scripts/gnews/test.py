@@ -13,7 +13,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
-nltk.download('wordnet') 
+#nltk.download('wordnet') 
 from nltk.stem.wordnet import WordNetLemmatizer
 
 stop_words = set(stopwords.words("english"))
@@ -45,7 +45,7 @@ def removeUselessWords(data):
 
 import json
 gnews = []
-with open('gnews.json') as f:
+with open('../../../gnews.json') as f:
     for line in f:
         gnews.append(json.loads(line))
         
@@ -54,6 +54,9 @@ oneNews = gnews[0]
 
 meta = []
 hashArray = []
+
+newsSource = {}
+noOfSubNews = 0
 for i,eachQuery in enumerate([elem for i,elem in enumerate(gnews )if i%60 == 0]):
     tempHash = []
     for j,eachNews in enumerate(eachQuery['news']):
@@ -63,6 +66,14 @@ for i,eachQuery in enumerate([elem for i,elem in enumerate(gnews )if i%60 == 0])
         for k,eachSubNews in  enumerate(eachNews['relatedArticles']):
 #            print(eachSubNews['text:'])
             aggText += eachSubNews['text:']
+#            newsKey = '_'.join(eachSubNews['source'].split())
+            newsKey = eachSubNews['source']
+            noOfSubNews = noOfSubNews + 1
+            if newsKey in newsSource :
+                newsSource[newsKey] = int( newsSource[newsKey]) + 1
+            else:
+                newsSource[newsKey] = 1
+       
         aggTextKeywords = removeUselessWords(aggText)[0]
         
         hashOfWords = hash(aggTextKeywords)
@@ -72,6 +83,7 @@ for i,eachQuery in enumerate([elem for i,elem in enumerate(gnews )if i%60 == 0])
                     'aggTextKeywords': aggTextKeywords,
                     'hash' : hashOfWords
                 })
+    
     tempHash.reverse()
     hashArray.append(tempHash)
     meta.append(tempMeta)
@@ -94,5 +106,24 @@ for elem in hashArray:
 import matplotlib.pyplot as plt
 plt.ylim([0,25])
 plt.plot(plotData[0:5])
-plt.savefig('fig1.png', dpi = 300)
+plt.savefig('newsTrends.png', dpi = 300)
+plt.close()
+
+
+newsSourceGraphData = [[i, newsSource[i]] for i in list(newsSource)]
+newsSourceGraphData.sort(key=lambda x: x[1], reverse = 1)
+newsSourceGraphData = newsSourceGraphData[0:30]
+import numpy as np
+
+y_pos = np.arange(len(newsSourceGraphData))
+plt.bar(y_pos, [ i[1]for i in newsSourceGraphData], align='center', alpha=0.5)
+plt.xticks(y_pos,  [ i[0]for i in newsSourceGraphData])
+plt.xticks( rotation=45,
+    horizontalalignment='right',
+    fontweight='light',
+    fontsize='xx-small')
+plt.ylabel('No of occurrence')
+plt.title('News Channels')
+#plt.show()
+plt.savefig('newsSourceOccurence.png', dpi = 300, bbox_inches='tight')
 plt.close()
