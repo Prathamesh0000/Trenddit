@@ -4,6 +4,17 @@ import json
 class reddit:
     def __init__(self):
         self.token = {}
+        
+    def pythonConnectDB( databaseName, collectionName):
+        import pymongo
+        myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+        mydb = myclient[databaseName]
+        dblist = myclient.list_database_names()
+        if databaseName in dblist:
+            print(databaseName + " database exists.")
+        else:
+            raise ValueError(databaseName + " database does not exist")
+        return mydb[collectionName]
 
     def getAccessTokenDetails(self, appId, secretKey, username, password):
         client_auth = requests.auth.HTTPBasicAuth(appId , secretKey)
@@ -34,10 +45,13 @@ class reddit:
     
 
     def getRedditData(self, subReddit, outputFileName):
- 
         output = self.getAPIResponse(subReddit)
-        with open('data.txt', 'w') as outfile:
-            json.dump(output, outfile, indent=4)
+        databaseName = "Trenddit"
+        collectionName = "reddit"
+        collection = pythonConnectDB(databaseName, collectionName)
+        collection.insert_one(output)
+        #with open('data.txt', 'w') as outfile:
+            #json.dump(output, outfile, indent=4)
 
 
 reddit().getRedditData('/r/news/', 'output.json')
