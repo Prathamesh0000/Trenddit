@@ -1,9 +1,5 @@
 import requests
 import json
-import datetime
-from os.path import join, exists
-from datetime import date, timedelta
-from urllib.request import urlopen
 
 '''
 ARTICLES_DIR = join('tempdata', 'articles')
@@ -22,44 +18,49 @@ def pythonConnectDB( databaseName, collectionName):
     return mydb[collectionName]
 
 databaseName = "Trenddit"
-collectionName = "newsapi"
-collection = pythonConnectDB(databaseName, collectionName)
+collectionName = "newsapi_trending"
+collection_countries = pythonConnectDB(databaseName, collectionName + '_countries')
+collection_sources = pythonConnectDB(databaseName, collectionName + '_sources')
 
 top_headlines_url = 'https://newsapi.org/v2/top-headlines'
-#everything_news_url = 'https://newsapi.org/v2/everything'
 
-headers ={'Authorization' : 'bbbdc47ecbd74e2aa6ed2c620769c918'}
+headers ={'Authorization' : 'ae1b243f56474b719185f6f51783cfa2'}
+payload = {'country': '','pageSize': 100}
 
-everything_payload = {'country': 'us', 'language': 'en', 'sortBy': 'popularity','from_param'
-                      :'',
-                     'to':''}
 
-start_date = date(2019, 10, 1)
-end_date = datetime.date.today()
-dayrange = range((end_date - start_date).days + 1)
-for daycount in dayrange:
-    dt = start_date + timedelta(days=daycount)
-    datestr = dt.strftime('%Y-%m-%d')
-    #fname = join(ARTICLES_DIR, datestr + '.json')
-    everything_payload['from_param'] = datestr
-    everything_payload['to'] = datestr
-    response = requests.get(url=everything_news_url, headers=headers, params=everything_payload)
-    data_1 = response.json()
-    data_2 = json.dumps(data_1)
-    data_3 = json.loads(data_2)
-    #for articles in data_3.items:
-        #print(data_3['articles'][0]['content'])
-    for i,eachElem in enumerate(data_3['articles']):
-        #print(eachElem['content'].split('…')[0])
-        eachElem['content'] = eachElem['content'].split('…')[0]
-        
-        print(datestr)
-    collection.insert_one(data_3)
+countries = ["us","ca","au","in","gb","sg"]
+for country in countries:
+    payload['country'] = country
+    response = requests.get(url=top_headlines_url, headers=headers, params=payload)
+    print("country :" + country)
+    resp = response.json()
+    resp_dump = json.dumps(resp,indent=2, ensure_ascii=False)
+    data = json.loads(resp_dump)
+    data['country'] = country
+    #print(data_3)
     
-    '''
-    with open(fname, 'w') as f:
-        print("Writing to", fname)
+    for i,eachElem in enumerate (data['articles']):
+        if eachElem['content']:    
+            eachElem['content'] = eachElem['content'].split('…')[0]
+    #print(data_3)
+    collection_countries.insert_one(data)
+    
+    
+payload ['country'] = ''
+sources = ["bbc-news","cnn","the-hindu"]
+for source in sources:
+    payload['sources'] = source
+    print("sources :" + source)
+    response = requests.get(url=top_headlines_url, headers=headers, params=payload)
+    
+    resp = response.json()
+    resp_dump = json.dumps(resp,indent=2, ensure_ascii=False)
+    data = json.loads(resp_dump)
+    data['source'] = source
 
-            # re-serialize it for pretty indentation
-        f.write(json.dumps(data_3, indent=2, ensure_ascii=False))
-    '''
+    for i,eachElem in enumerate (data['articles']):
+        if eachElem['content']:    
+            eachElem['content'] = eachElem['content'].split('…')[0]
+    #print(data)
+    collection_sources.insert_one(data)
+ 
