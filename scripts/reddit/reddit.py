@@ -1,6 +1,8 @@
 import requests
 import requests.auth
 import json
+import sys
+
 class reddit:
     def __init__(self):
         self.token = {}
@@ -43,15 +45,43 @@ class reddit:
         response = requests.get(baseURL + api, headers=headers)
         return response.json()
     
+        
+    def commentObject_t1(self, object_t1):
+        #print("parsing and creating Comment object")
+        print(object_t1)
+        return object_t1
+    def linkObject_t3(self, object_t3):
+        #print("parsing and creating link object")
+        print(object_t3)
+        return object_t3
+    
+    def subredditObject_t5(self, object_t5):
+        print("parsing and creating Subreddit object")
 
+        return object_t5
+
+    def getRedditJSONParsed(self, redditObject):
+        if( redditObject['kind'] == 't1'):
+            
+            return self.commentObject_t1(redditObject['data'])
+        elif( redditObject['kind'] == 't3'):
+            return self.linkObject_t3(redditObject['data'])
+        elif( redditObject['kind'] == 't5'):
+            return self.subredditObject_t5(redditObject['data'])  
+        
     def getRedditData(self, subReddit, outputFileName):
         output = self.getAPIResponse(subReddit)
-        databaseName = "Trenddit"
-        collectionName = "reddit"
-        #collection = self.pythonConnectDB(databaseName, collectionName)
-        #collection.insert_one(output)
-        with open(outputFileName + '.json', 'w') as outfile:
-            json.dump(output, outfile, indent=4)
+        for eachElem in output['data']['children'][0:1]:
+            self.getRedditJSONParsed(eachElem)
+
+# =============================================================================
+#         databaseName = "Trenddit"
+#         collectionName = "reddit"
+#         collection = pythonConnectDB(databaseName, collectionName)
+#         collection.insert_one(output)
+# =============================================================================
+        #with open('data.txt', 'w') as outfile:
+            #json.dump(output, outfile, indent=4)
 
 
-reddit().getRedditData('/r/worldnews/about', 'about')
+reddit().getRedditData('/r/news/', 'output.json')
