@@ -2,11 +2,11 @@ import requests
 import requests.auth
 import json
 import mysql.connector
-
 test = False
 class reddit:
     def __init__(self):
         self.token = {}
+        self.conn = mysql.connector.connect(host='127.0.0.1', user='root', passwd=None, db='Trenddit', use_unicode=True, charset="utf8")
         
     def mysqlConnector(self,databaseName):
         
@@ -64,9 +64,78 @@ class reddit:
     
         
     def commentObject_t1(self, object_t1):
-        print("parsing and creating Comment object")
+
+        print("t1:parsing and creating Comment object")
         
+        if ( object_t1['author'] != "[deleted]" ):
+            print( object_t1['parent_id'] + "->" + object_t1['name'])
+           
+
+            commentObject = {}
+            
+            commentObject['parent_id'] = object_t1['parent_id']          # parent Id : Foreign key[comments]
+            commentObject['name'] =  object_t1['name']                   # name Id   : Primary key[comments]
+            
+            commentObject['subreddit_name_prefixed'] = object_t1['subreddit_name_prefixed'] 
+            commentObject['subreddit_id'] =  object_t1['subreddit_id']   # subreddit Id: Foreign key[subreddit]
+    
+    
+            commentObject['total_awards_received'] =  object_t1['total_awards_received']
+            commentObject['ups'] =  object_t1['ups']
+    
+            commentObject['score'] =  object_t1['score']
+    
+            commentObject['author'] =  object_t1['author']
+            commentObject['author_fullname'] =  object_t1['author_fullname'] if 'author_fullname' in object_t1 else ""
+    
+            commentObject['body'] =  object_t1['body']
+    
+            commentObject['permalink'] =  object_t1['permalink']
+            commentObject['created_utc'] = object_t1['created_utc']
+            commentObject['controversiality'] =  object_t1['controversiality'] if 'controversiality' in object_t1 else -1
+
+            
+#    
+            
+#    CREATE TABLE comments (
+#        parent_id varchar(255),
+#        name varchar(255) PRIMARY KEY,
+#        subreddit_name_prefixed varchar(255),
+#        subreddit_id varchar(255),
+#        total_awards_received int,
+#        ups int,
+#        score int,
+#        author varchar(255),
+#        author_fullname varchar(255),
+#        body TEXT,
+#        permalink varchar(255),
+#        created_utc varchar(255),
+#        controversiality int
+#    );  
+            
+#            ALTER TABLE Trenddit.comments MODIFY COLUMN body TEXT
+#            CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
+            
+            
+            try:
+                sql = '''show warnings;SET NAMES utf8mb4;INSERT INTO comments (parent_id, name, subreddit_name_prefixed, subreddit_id, total_awards_received, ups, score, author, author_fullname, body, permalink, created_utc, controversiality)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+                self.cur = self.conn.cursor()
+
+                val = tuple(commentObject.values())
+                self.cur.execute(sql, val, multi=True)
+                self.conn.commit()
+                self.cur.close()
+            except mysql.connector.Error as error:    
+                print("Failed to insert into MySQL table {}".format(error))
+            
+            
+            if ( object_t1['replies'] ) : 
+                for eachReply in object_t1['replies']['data']['children']:
+                    self.getRedditJSONParsed(eachReply)
+                
         return object_t1
+    
     def linkObject_t3(self, object_t3):
         print("t3:parsing and creating link object")
         final = {}
@@ -97,16 +166,14 @@ class reddit:
         cur = conn.cursor()
         cur.execute(mySql_insert_query, recordTuple)
         conn.commit()
-        cur.close()
-        return object_t3
-    
+        cur.close()    
     def subredditObject_t5(self, object_t5):
         print("parsing and creating Subreddit object")
 
         return object_t5
 
     def getRedditJSONParsed(self, redditObject):
-        if( redditObject['kind'] == 't1'):    
+        if( redditObject['kind'] == 't1'):
             return self.commentObject_t1(redditObject['data'])
         elif( redditObject['kind'] == 't3'):
             return self.linkObject_t3(redditObject['data'])
@@ -119,4 +186,4 @@ class reddit:
         for eachElem in output['data']['children']:
             self.getRedditJSONParsed(eachElem)
 
-reddit().getRedditData('/r/news/', 'output.json')
+reddit().getRedditData('/r/news/')
