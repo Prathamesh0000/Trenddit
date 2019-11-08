@@ -166,7 +166,9 @@ class reddit:
         cur = conn.cursor()
         cur.execute(mySql_insert_query, recordTuple)
         conn.commit()
-        cur.close()    
+        cur.close()
+        conn.close()
+        
     def subredditObject_t5(self, object_t5):
         print("parsing and creating Subreddit object")
 
