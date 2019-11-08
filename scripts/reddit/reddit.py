@@ -4,16 +4,20 @@ import json
 import mysql.connector
 from mysql.connector import errorcode
 test = False
+dbName = "Trenddit"
+
+
 class reddit:
     def __init__(self):
         self.token = {}
-        
+        self.conn = mysql.connector.connect(host='127.0.0.1', user='root', passwd=None, db=dbName, use_unicode=True, charset="utf8", autocommit=True)
+    def __del__(self): 
+        self.conn.close()
+        print("Destructor called") 
     def mysqlConnector(self,databaseName):
         
-        cnx = mysql.connector.connect(user='root', password=None,
-                              host='localhost',
-                              database=databaseName,autocommit=True)
-        return cnx
+#        cnx = mysql.connector.connect(user='root', password=None, host='localhost', database=databaseName,autocommit=True)
+        return self.conn
     
     def pythonConnectDB( databaseName, collectionName):
         import pymongo
@@ -64,83 +68,49 @@ class reddit:
     
         
     def commentObject_t1(self, object_t1):
-
-        print("t1:parsing and creating Comment object")
-        
-        if ( object_t1['author'] != "[deleted]" ):
-            print( object_t1['parent_id'] + "->" + object_t1['name'])
-            commentObject = {}
-            
-            commentObject['parent_id'] = object_t1['parent_id']          # parent Id : Foreign key[comments]
-            commentObject['name'] =  object_t1['name']                   # name Id   : Primary key[comments]
-            
-            commentObject['subreddit_name_prefixed'] = object_t1['subreddit_name_prefixed'] 
-            commentObject['subreddit_id'] =  object_t1['subreddit_id']   # subreddit Id: Foreign key[subreddit]
-    
-    
-            commentObject['total_awards_received'] =  object_t1['total_awards_received']
-            commentObject['ups'] =  object_t1['ups']
-    
-            commentObject['score'] =  object_t1['score']
-    
-            commentObject['author'] =  object_t1['author']
-            commentObject['author_fullname'] =  object_t1['author_fullname'] if 'author_fullname' in object_t1 else ""
-    
-            commentObject['body'] =  object_t1['body']
-    
-            commentObject['permalink'] =  object_t1['permalink']
-            commentObject['created_utc'] = object_t1['created_utc']
-            commentObject['controversiality'] =  object_t1['controversiality'] if 'controversiality' in object_t1 else -1
-
-            try:
-                conn = mysql.connector.connect(host='127.0.0.1', user='root', passwd=None, db='Trenddit', use_unicode=True, charset="utf8", autocommit=True)
-                sql = '''SET NAMES 'utf8mb4';INSERT INTO comments (parent_id, name, subreddit_name_prefixed, subreddit_id, total_awards_received, ups, score, author, author_fullname, body, permalink, created_utc, controversiality)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
-                cur = conn.cursor()
-
-                val = tuple(commentObject.values())
-                res = cur.execute(sql, val,multi=True)
-                res.send(None)
-                cur.close()
-            except mysql.connector.Error as err:
-              if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
-              elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-              else:
-                print(err)
-            else:
-              conn.close()
-              
-            if ( object_t1['replies'] ) : 
-                for eachReply in object_t1['replies']['data']['children']:
-                    self.getRedditJSONParsed(eachReply)
-                                
-#    
-            
-#    CREATE TABLE comments (
-#        parent_id varchar(255),
-#        name varchar(255) PRIMARY KEY,
-#        subreddit_name_prefixed varchar(255),
-#        subreddit_id varchar(255),
-#        total_awards_received int,
-#        ups int,
-#        score int,
-#        author varchar(255),
-#        author_fullname varchar(255),
-#        body TEXT,
-#        permalink varchar(255),
-#        created_utc varchar(255),
-#        controversiality int
-#    );  
-            
-#            ALTER TABLE Trenddit.comments MODIFY COLUMN body TEXT
-#            CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
-            
-            
+        if 'author' in object_t1:
+            if ( object_t1['author'] != "[deleted]" ):
+                print("t1:parsing and creating Comment object")
+                print( object_t1['parent_id'] + "->" + object_t1['name'])
+                commentObject = {}
                 
-        return object_t1
-    
+                commentObject['parent_id'] = object_t1['parent_id']          # parent Id : Foreign key[comments]
+                commentObject['name'] =  object_t1['name']                   # name Id   : Primary key[comments]
+                
+                commentObject['subreddit_name_prefixed'] = object_t1['subreddit_name_prefixed'] 
+                commentObject['subreddit_id'] =  object_t1['subreddit_id']   # subreddit Id: Foreign key[subreddit]
+        
+        
+                commentObject['total_awards_received'] =  object_t1['total_awards_received']
+                commentObject['ups'] =  object_t1['ups']
+        
+                commentObject['score'] =  object_t1['score']
+        
+                commentObject['author'] =  object_t1['author']
+                commentObject['author_fullname'] =  object_t1['author_fullname'] if 'author_fullname' in object_t1 else ""
+        
+                commentObject['body'] =  object_t1['body']
+        
+                commentObject['permalink'] =  object_t1['permalink']
+                commentObject['created_utc'] = object_t1['created_utc']
+                commentObject['controversiality'] =  object_t1['controversiality'] if 'controversiality' in object_t1 else -1
+                
+                conn =self.mysqlConnector(dbName)
+                cur = conn.cursor()
+                cur.execute("SET NAMES 'utf8mb4';")
+                mySql_insert_query = '''INSERT INTO comments (parent_id, name, subreddit_name_prefixed, subreddit_id, total_awards_received, ups, score, author, author_fullname, body, permalink, created_utc, controversiality)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+       
+                recordTuple = tuple(commentObject.values())
+                cur.execute(mySql_insert_query, recordTuple)
+                conn.commit()
+                cur.close()
+                print("t1:Object inserted") 
+                if ( object_t1['replies'] ) : 
+                    for eachReply in object_t1['replies']['data']['children']:
+                        self.commentObject_t1(eachReply['data'])
+                
+                
     def linkObject_t3(self, object_t3):
         print("t3:parsing and creating link object")
         final = {}
@@ -167,12 +137,15 @@ class reddit:
         mySql_insert_query = """INSERT INTO links VALUES 
                            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
         recordTuple = tuple(final.values())
-        conn =self.mysqlConnector("trenddit")
+        conn =self.mysqlConnector(dbName)
         cur = conn.cursor()
         cur.execute(mySql_insert_query, recordTuple)
         conn.commit()
         cur.close()
-        conn.close()
+#        conn.close()
+        print("t1:Object insterted") 
+        reddit().getRedditData(final['permalink'])
+        
         
     def subredditObject_t5(self, object_t5):
         print("parsing and creating Subreddit object")
@@ -189,7 +162,10 @@ class reddit:
         
     def getRedditData(self, subReddit):
         output = self.getAPIResponse(subReddit)
+        if isinstance(output, list):
+            #used first elem as it contains comment
+            output = output[1]
         for eachElem in output['data']['children']:
             self.getRedditJSONParsed(eachElem)
-
+   
 reddit().getRedditData('/r/news/')
