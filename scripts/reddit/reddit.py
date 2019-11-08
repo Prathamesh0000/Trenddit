@@ -1,11 +1,10 @@
 import requests
 import requests.auth
 import mysql.connector
-from mysql.connector import Error
+from mysql.connector import errorcode
 class reddit:
     def __init__(self):
         self.token = {}
-        self.conn = mysql.connector.connect(host='127.0.0.1', user='root', passwd=None, db='Trenddit', use_unicode=True, charset="utf8")
         
     def pythonConnectDB( databaseName, collectionName):
         import pymongo
@@ -49,8 +48,6 @@ class reddit:
     def commentObject_t1(self, object_t1):
         if ( object_t1['author'] != "[deleted]" ):
             print( object_t1['parent_id'] + "->" + object_t1['name'])
-           
-
             commentObject = {}
             
             commentObject['parent_id'] = object_t1['parent_id']          # parent Id : Foreign key[comments]
@@ -74,7 +71,30 @@ class reddit:
             commentObject['created_utc'] = object_t1['created_utc']
             commentObject['controversiality'] =  object_t1['controversiality'] if 'controversiality' in object_t1 else -1
 
-            
+            try:
+                conn = mysql.connector.connect(host='127.0.0.1', user='root', passwd=None, db='Trenddit', use_unicode=True, charset="utf8", autocommit=True)
+                sql = '''SET NAMES 'utf8mb4';INSERT INTO comments (parent_id, name, subreddit_name_prefixed, subreddit_id, total_awards_received, ups, score, author, author_fullname, body, permalink, created_utc, controversiality)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+                cur = conn.cursor()
+
+                val = tuple(commentObject.values())
+                res = cur.execute(sql, val,multi=True)
+                res.send(None)
+                cur.close()
+            except mysql.connector.Error as err:
+              if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Something is wrong with your user name or password")
+              elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Database does not exist")
+              else:
+                print(err)
+            else:
+              conn.close()
+              
+            if ( object_t1['replies'] ) : 
+                for eachReply in object_t1['replies']['data']['children']:
+                    self.getRedditJSONParsed(eachReply)
+                                
 #    
             
 #    CREATE TABLE comments (
@@ -97,22 +117,6 @@ class reddit:
 #            CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
             
             
-            try:
-                sql = '''show warnings;SET NAMES utf8mb4;INSERT INTO comments (parent_id, name, subreddit_name_prefixed, subreddit_id, total_awards_received, ups, score, author, author_fullname, body, permalink, created_utc, controversiality)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
-                self.cur = self.conn.cursor()
-
-                val = tuple(commentObject.values())
-                self.cur.execute(sql, val, multi=True)
-                self.conn.commit()
-                self.cur.close()
-            except mysql.connector.Error as error:    
-                print("Failed to insert into MySQL table {}".format(error))
-            
-            
-            if ( object_t1['replies'] ) : 
-                for eachReply in object_t1['replies']['data']['children']:
-                    self.getRedditJSONParsed(eachReply)
                 
         return object_t1
     def linkObject_t3(self, object_t3):
@@ -139,19 +143,5 @@ class reddit:
         for eachChildren in output:
             self.getRedditJSONParsed(eachChildren)
         
-        if(self.conn.is_connected()):
-            print("mysql connection closed")
-            self.conn.close()
-        
-
-# =============================================================================
-#         databaseName = "Trenddit"
-#         collectionName = "reddit"
-#         collection = pythonConnectDB(databaseName, collectionName)
-#         collection.insert_one(output)
-# =============================================================================
-#        with open(outputFileName, 'w') as outfile:
-#            json.dump(output[1:], outfile, indent=4)
-
 
 reddit().getRedditData('/r/news/comments/ds2smp/abc_news_amy_robach_caught_on_hot_mic_saying/', 'output.json')
