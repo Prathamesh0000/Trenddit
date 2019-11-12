@@ -7,6 +7,17 @@ test = False
 dbName = "Trenddit"
 
 
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+analyser = SentimentIntensityAnalyzer()
+
+def textClassification(text):
+    sentiment_analyzer_scores(text)
+
+
+def sentiment_analyzer_scores(sentence):
+    score = analyser.polarity_scores(sentence)
+    print(str(score))
+
 class reddit:
     def __init__(self):
         self.token = {}
@@ -165,7 +176,11 @@ class reddit:
         if isinstance(output, list):
             #used first elem as it contains comment
             output = output[1]
+#        elif 'data' in output:
         for eachElem in output['data']['children']:
             self.getRedditJSONParsed(eachElem)
+#        else:
+#            print(output)
+#        print(output)
    
-reddit().getRedditData('/r/news/')
+reddit().getRedditData('/r/The_Donald/comments/du1r69/disney_owns_abc_disney_loves_children/')
