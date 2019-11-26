@@ -4,7 +4,7 @@ import json
 #import mysql.connector
 from mysql.connector import errorcode
 test = False
-
+DoNotSaveDatabase = True
 
 # influencers (+/-)
 # Attackers
@@ -17,20 +17,28 @@ test = False
 #Two sample ks test
 comment_score_array = []
 
+
+
+# sentimental analysis
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 analyser = SentimentIntensityAnalyzer()
 
 def textClassification(text):
     sentiment_analyzer_scores(text)
 
-
-
 def sentiment_analyzer_scores(sentence):
     score = analyser.polarity_scores(sentence)
 #    print(str(score))
     return score
 
-def plotForData(data):
+
+# Hate speach Detection
+    
+from hatesonar import Sonar
+sonar = Sonar()
+sonar.ping(text="At least I'm not a Bitch")
+
+def plotForData(data, name):
     import numpy as np
     import matplotlib.pyplot as plt
     num_bins = 50
@@ -41,8 +49,10 @@ def plotForData(data):
     
     # And finally plot the cdf
     plt.plot(bin_edges[1:], cdf)
-    
+    plt.savefig( name + '.eps', format='eps', dpi=10000)
     plt.show()
+ 
+    
 #import mysql.connector
 #class database:
 #    def __init__(self):
@@ -119,14 +129,12 @@ def plotForData(data):
 #            print("Links: Something went wrong: {}".format(err))
 ##        conn.close()
     
-    
+tempHateSpeachArray = [];
 class reddit:
     def __init__(self, redditConn):
         self.token = {}
-#        self.conn = database().getSQLConnection()
         self.redditDatabase = redditConn
     def __del__(self): 
-#        self.conn.close()
         print("Destructor called") 
     def mysqlConnector(self,databaseName):
         return self.conn
@@ -152,9 +160,9 @@ class reddit:
     def getAPIResponse(self, api):
         if(test):
             with open("reddit_test.json", 'r') as f:
-                #response = json.load(f)
+                # response = json.load(f)
                 response = f.read()
-                #use this only when reading from json file otherwise don't use below statement
+                # use this only when reading from json file otherwise don't use below statement
                 response = json.loads(response)
                 return response
         else:
@@ -171,7 +179,6 @@ class reddit:
     def commentObject_t1(self, object_t1, linkObj):
         if 'author' in object_t1:
             if ( object_t1['author'] != "[deleted]" ):
-#                print("t1:parsing and creating Comment object")
                 print( object_t1['parent_id'] + "->" + object_t1['name'])
                 commentObject = {}
                 
@@ -196,15 +203,24 @@ class reddit:
                 commentObject['created_utc'] = object_t1['created_utc']
                 commentObject['controversiality'] =  object_t1['controversiality'] if 'controversiality' in object_t1 else -1
                 
-                text_score = sentiment_analyzer_scores(commentObject['body'])
+                hateSpeach = sonar.ping(text=commentObject['body'])
+                commentObject['offensive_language'] = hateSpeach['classes'][1]['confidence']
+                commentObject['hate_speech'] = hateSpeach['classes'][0]['confidence']
+                commentObject['speech_type'] = hateSpeach['top_class']
+                
+                text_senti_score = sentiment_analyzer_scores(commentObject['body'])
+                commentObject['sentiment'] = text_senti_score['compound']
+                
+                
                 score = {
                     'obj': commentObject,
                 }
                 
+                for i in text_senti_score:
+                    score[i] = text_senti_score[i]
                 
-                for i in text_score:
-                    score[i] = text_score[i]
                 comment_score_array.append(score)
+                tempHateSpeachArray.append(hateSpeach)
                 self.redditDatabase.addComments(commentObject)
                 if ( object_t1['replies'] ) : 
                     for eachReply in object_t1['replies']['data']['children']:
@@ -212,7 +228,6 @@ class reddit:
                 
                 
     def linkObject_t3(self, object_t3, linkObj):
-#        print("t3:parsing and creating link object")
         final = {}
         final['id'] = object_t3['id']
         final['subreddit_id'] = object_t3['subreddit_id'] #primary key [links]
@@ -262,7 +277,7 @@ class reddit:
             return self.subredditObject_More(redditObject['data'], linkObj)
         
     def getRedditData(self, subReddit, linkObj):
-        output = self.getAPIResponse(subReddit)
+        output = self.getAPIResponse("/r/" + subReddit + "/")
         if isinstance(output, list):
             #used first elem as it contains comment
             output = output[1]
@@ -274,9 +289,9 @@ class reddit:
 #        print(output)
 
 from redditDatabaseHelper import redditDataBaseOps
-sub = "/r/The_Donald/"
+sub = "The_Donald"
 print(sub)  
-reddit(redditDataBaseOps()).getRedditData(sub, None)
+reddit(redditDataBaseOps(DoNotSaveDatabase)).getRedditData(sub, None)
 
 
 
@@ -321,41 +336,45 @@ neu_avg = sum(neu)/len(neu)
 
 # not usefull
 
-plotForData(tot)
+plotForData(tot, sub + "senti")
 print("total senti cdf plot ^")
 
 
-plotForData(neg)
-print("negative senti cdf plot ^")
-
-
-plotForData(pos)
-print("positive senti cdf plot ^")
-
-
-plotForData(neu)
-print("neu senti cdf plot ^")
+#plotForData(neg)
+#print("negative senti cdf plot ^")
+#
+#
+#plotForData(pos)
+#print("positive senti cdf plot ^")
+#
+#
+#plotForData(neu)
+#print("neu senti cdf plot ^")
 
 
 # not usefull
 
-plotForData([ i['obj']['score'] for i in comment_compound ])
+plotForData([ i['obj']['score'] for i in comment_compound ], sub + "redditscore")
 print("total reddit score senti cdf plot ^")
 
 
-comment_compound_negative_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] < 0]
-plotForData(comment_compound_negative_reddit_score)
-print("negative reddit score senti cdf plot ^")
 
+plotForData([  i['classes'][0]['confidence']  for i in tempHateSpeachArray], sub + "hate")
+print("total hate speech  cdf plot ^")
 
-comment_compound_positive_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] > 0]
-plotForData(comment_compound_positive_reddit_score)
-print("positive reddit score senti cdf plot ^")
-
-
-comment_compound_neutral_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] == 0]
-plotForData(comment_compound_neutral_reddit_score)
-print("neutral reddit score senti cdf plot ^")
+#comment_compound_negative_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] < 0]
+#plotForData(comment_compound_negative_reddit_score)
+#print("negative reddit score senti cdf plot ^")
+#
+#
+#comment_compound_positive_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] > 0]
+#plotForData(comment_compound_positive_reddit_score)
+#print("positive reddit score senti cdf plot ^")
+#
+#
+#comment_compound_neutral_reddit_score = [ i['obj']['score']  for i in comment_compound if i['compound'] == 0]
+#plotForData(comment_compound_neutral_reddit_score)
+#print("neutral reddit score senti cdf plot ^")
 
 
 import powerlaw
@@ -372,7 +391,8 @@ import matplotlib.pyplot as plt
   
 # plotting the points  
 plt.plot([ i['compound'] for i in comment_compound ]  , [ i['obj']['score'] for i in comment_compound ]  ) 
-  
+
+
 # naming the x axis 
 plt.xlabel('compound score senti') 
 # naming the y axis 
