@@ -4,7 +4,7 @@ import json
 #import mysql.connector
 from mysql.connector import errorcode
 test = False
-DoNotSaveDatabase = True
+DoNotSaveDatabase = False
 
 # influencers (+/-)
 # Attackers
@@ -172,6 +172,7 @@ class reddit:
             baseURL = "https://oauth.reddit.com"
             headers = {"Authorization": "bearer " + tokenDetails['access_token'] , "User-Agent": "ChangeMeClient/0.1 by YourUsername"}
             response = requests.get(baseURL + api, headers=headers)
+            print(baseURL+api)
             return response.json()
         
     
@@ -277,21 +278,21 @@ class reddit:
             return self.subredditObject_More(redditObject['data'], linkObj)
         
     def getRedditData(self, subReddit, linkObj):
-        output = self.getAPIResponse("/r/" + subReddit + "/")
+        output = self.getAPIResponse(subReddit)
         if isinstance(output, list):
             #used first elem as it contains comment
             output = output[1]
-#        elif 'data' in output:
-        for eachElem in output['data']['children']:
-            self.getRedditJSONParsed(eachElem, linkObj)
+        if 'data' in output:
+            for eachElem in output['data']['children']:
+                self.getRedditJSONParsed(eachElem, linkObj)
 #        else:
-#            print(output)
+#        print(output)
 #        print(output)
 
 from redditDatabaseHelper import redditDataBaseOps
-sub = "The_Donald"
+sub = "news"
 print(sub)  
-reddit(redditDataBaseOps(DoNotSaveDatabase)).getRedditData(sub, None)
+reddit(redditDataBaseOps(DoNotSaveDatabase)).getRedditData("/r/"+sub+"/", None)
 
 
 
